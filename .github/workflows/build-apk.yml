@@ -29,10 +29,13 @@ jobs:
         run: |
           unzip -o snap_growth_github_builder.zip -d project
 
-      - name: Upgrade Gradle wrapper
+      - name: Update Android build versions
         run: |
           sed -i 's#distributionUrl=.*#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14-all.zip#' project/android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/com.android.application.*version "8.3.2"/com.android.application version "8.11.1"/' project/android/settings.gradle
+          sed -i "s/com.android.tools.build:gradle:8.3.2/com.android.tools.build:gradle:8.11.1/" project/android/build.gradle
           cat project/android/gradle/wrapper/gradle-wrapper.properties
+          cat project/android/settings.gradle
 
       - name: Get Flutter dependencies
         working-directory: project
