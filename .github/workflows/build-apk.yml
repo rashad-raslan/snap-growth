@@ -1,48 +1,61 @@
 name: Build Snap Growth APK
 
 on:
-workflow_dispatch:
-push:
-branches: [main]
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-steps:
-  - name: Download project ZIP
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  - name: Set up Java
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '17'
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  - name: Set up Flutter
-    uses: subosito/flutter-action@v2
-    with:
-      channel: stable
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
 
-  - name: Extract project ZIP
-    run: |
-      unzip -o snap_growth_github_builder.zip -d project
-      cd project
-      if [ -f pubspec.yaml ]; then
-        echo "PROJECT_DIR=$PWD" >> $GITHUB_ENV
-      else
-        find . -name pubspec.yaml -print
-        exit 1
-      fi
+      - name: Find project ZIP
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No ZIP file found in repository"
+            exit 1
+          fi
+          mkdir -p project
+          unzip -o "$ZIP_FILE" -d project
+          PUBSPEC=$(find project -type f -name pubspec.yaml | head -n 1)
+          if [ -z "$PUBSPEC" ]; then
+            echo "pubspec.yaml not found inside ZIP"
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$PUBSPEC")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "APK_PATH=$PROJECT_DIR/build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_ENV"
 
-  - name: Build APK
-    run: |
-      cd "$PROJECT_DIR"
-      flutter pub get
-      flutter build apk --release
+      - name: Get dependencies
+        run: |
+          cd "$PROJECT_DIR"
+          flutter pub get
 
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: snap-growth-apk
-      path: project/build/app/outputs/flutter-apk/app-release.apk
+      - name: Build Android APK
+        run: |
+          cd "$PROJECT_DIR"
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: snap-growth-apk
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
