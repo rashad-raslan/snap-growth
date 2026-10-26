@@ -25,37 +25,25 @@ jobs:
         with:
           channel: stable
 
-      - name: Find project ZIP
+      - name: Extract Flutter project
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No ZIP file found in repository"
-            exit 1
-          fi
-          mkdir -p project
-          unzip -o "$ZIP_FILE" -d project
-          PUBSPEC=$(find project -type f -name pubspec.yaml | head -n 1)
-          if [ -z "$PUBSPEC" ]; then
-            echo "pubspec.yaml not found inside ZIP"
-            exit 1
-          fi
-          PROJECT_DIR=$(dirname "$PUBSPEC")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "APK_PATH=$PROJECT_DIR/build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_ENV"
+          unzip -o snap_growth_github_builder.zip -d project
 
-      - name: Get dependencies
+      - name: Upgrade Gradle wrapper
         run: |
-          cd "$PROJECT_DIR"
-          flutter pub get
+          sed -i 's#distributionUrl=.*#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14-all.zip#' project/android/gradle/wrapper/gradle-wrapper.properties
+          cat project/android/gradle/wrapper/gradle-wrapper.properties
 
-      - name: Build Android APK
-        run: |
-          cd "$PROJECT_DIR"
-          flutter build apk --release
+      - name: Get Flutter dependencies
+        working-directory: project
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: project
+        run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: snap-growth-apk
-          path: ${{ env.APK_PATH }}
-          if-no-files-found: error
+          path: project/build/app/outputs/flutter-apk/app-release.apk
